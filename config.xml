@@ -3,22 +3,23 @@
     <master>
         <ip>127.0.0.1</ip>
         <port>8000</port>
+        <directory>E:\大三下\Simple-DFS\tmp\metadata\metadata.txt</directory>
     </master>
     <storageServers>
         <server>
             <ip>127.0.0.1</ip>
             <port>8001</port>
-            <directory>D:\GoProj\Simple-DFS\tmp\chunk102</directory>
+            <directory>E:\大三下\Simple-DFS\tmp\chunk102</directory>
         </server>
         <server>
             <ip>127.0.0.1</ip>
             <port>8002</port>
-            <directory>D:\GoProj\Simple-DFS\tmp\chunk103</directory>
+            <directory>E:\大三下\Simple-DFS\tmp\chunk103</directory>
         </server>
         <server>
             <ip>127.0.0.1</ip>
             <port>8003</port>
-            <directory>D:\GoProj\Simple-DFS\tmp\chunk104</directory>
+            <directory>E:\大三下\Simple-DFS\tmp\chunk104</directory>
         </server>
     </storageServers>
 </configuration>

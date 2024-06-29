@@ -1,10 +1,10 @@
 package main
 
 import (
+	"GoDFS/utils"
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,20 +15,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-type Configuration struct {
-	Master struct {
-		IP   string `xml:"ip"`
-		Port string `xml:"port"`
-	} `xml:"master"`
-	StorageServers struct {
-		Servers []struct {
-			IP        string `xml:"ip"`
-			Port      string `xml:"port"`
-			Directory string `xml:"directory"`
-		} `xml:"server"`
-	} `xml:"storageServers"`
-}
 
 func extractChunkIndex(fileName string) (int, error) {
 	// Define a regular expression to find the last number in the string
@@ -47,26 +33,6 @@ func extractChunkIndex(fileName string) (int, error) {
 	}
 
 	return index, nil
-}
-
-func loadConfig(configPath string) (Configuration, error) {
-	var config Configuration
-	xmlFile, err := os.Open(configPath)
-	if err != nil {
-		return config, err
-	}
-	defer func(xmlFile *os.File) {
-		err := xmlFile.Close()
-		if err != nil {
-			fmt.Println("Error closing file")
-		}
-	}(xmlFile)
-	byteValue, _ := io.ReadAll(xmlFile)
-	err = xml.Unmarshal(byteValue, &config)
-	if err != nil {
-		return Configuration{}, err
-	}
-	return config, nil
 }
 
 func splitFile(filePath string, chunkSize int) ([][]byte, error) {
@@ -272,7 +238,7 @@ func listFiles(masterIP, masterPort string) ([]string, error) {
 }
 
 func main() {
-	config, err := loadConfig("config.xml")
+	config, err := utils.LoadConfig("config.xml")
 	if err != nil {
 		fmt.Println("Error loading configuration:", err)
 		return
@@ -286,7 +252,7 @@ func main() {
 			return
 		}
 		filePath := args[0]
-		err := uploadFile(config.Master.IP, config.Master.Port, filePath, 1024*200)
+		err := uploadFile(config.Master.IP, config.Master.Port, filePath, utils.ChunkSize)
 		if err != nil {
 			fmt.Println("Error uploading file:", err)
 		} else {

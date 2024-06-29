@@ -1,10 +1,10 @@
 package main
 
 import (
+	"GoDFS/utils"
+	"encoding/gob"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"sync"
@@ -16,27 +16,13 @@ TODO: 2. metadata persistence.
 TODO: 3. Support for Linux; echo off some windows.
 */
 
-type Configuration struct {
-	Master struct {
-		IP   string `xml:"ip"`
-		Port string `xml:"port"`
-	} `xml:"master"`
-	StorageServers struct {
-		Servers []struct {
-			IP        string `xml:"ip"`
-			Port      string `xml:"port"`
-			Directory string `xml:"directory"`
-		} `xml:"server"`
-	} `xml:"storageServers"`
-}
-
 type Master struct {
 	mu        sync.Mutex
 	fileIndex map[string][]string
-	config    Configuration
+	config    utils.Configuration
 }
 
-func NewMaster(config Configuration) *Master {
+func NewMaster(config utils.Configuration) *Master {
 	return &Master{
 		fileIndex: make(map[string][]string),
 		config:    config,
@@ -58,6 +44,11 @@ func (m *Master) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	defer m.mu.Unlock()
 
 	m.fileIndex[request.FileName] = request.Chunks
+
+	if err := m.saveMetadata(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	response := make(map[string]string)
 	for i, chunk := range request.Chunks {
@@ -119,6 +110,11 @@ func (m *Master) deleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	delete(m.fileIndex, fileName)
 
+	if err := m.saveMetadata(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	response := make(map[string]string)
 	for i, chunk := range chunks {
 		server := m.config.StorageServers.Servers[i%len(m.config.StorageServers.Servers)]
@@ -149,12 +145,43 @@ func (m *Master) listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (m *Master) saveMetadata() error {
+	file, err := os.Create(m.config.Master.Directory)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := gob.NewEncoder(file)
+	return encoder.Encode(m.fileIndex)
+}
+
+func (m *Master) loadMetadata() error {
+	file, err := os.Open(m.config.Master.Directory)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// 如果文件不存在，说明是第一次启动
+			return nil
+		}
+		return err
+	}
+	defer file.Close()
+
+	decoder := gob.NewDecoder(file)
+	return decoder.Decode(&m.fileIndex)
+}
+
 func (m *Master) Run() {
 	http.HandleFunc("/upload", m.uploadHandler)
 	http.HandleFunc("/download", m.downloadHandler)
 	http.HandleFunc("/list", m.listHandler)
 	http.HandleFunc("/delete", m.deleteHandler)
 	addr := fmt.Sprintf("%s:%s", m.config.Master.IP, m.config.Master.Port)
+
+	if err := m.loadMetadata(); err != nil {
+		panic(err)
+	}
+
 	fmt.Println("Master running on", addr)
 	err := http.ListenAndServe(addr, nil)
 	if err != nil {
@@ -162,28 +189,8 @@ func (m *Master) Run() {
 	}
 }
 
-func loadConfig(configPath string) (Configuration, error) {
-	var config Configuration
-	xmlFile, err := os.Open(configPath)
-	if err != nil {
-		return config, err
-	}
-	defer func(xmlFile *os.File) {
-		err := xmlFile.Close()
-		if err != nil {
-			fmt.Println("Error closing file")
-		}
-	}(xmlFile)
-	byteValue, _ := io.ReadAll(xmlFile)
-	err = xml.Unmarshal(byteValue, &config)
-	if err != nil {
-		return Configuration{}, err
-	}
-	return config, nil
-}
-
 func main() {
-	config, err := loadConfig("config.xml")
+	config, err := utils.LoadConfig("config.xml")
 	if err != nil {
 		fmt.Println("Error loading configuration:", err)
 		return
