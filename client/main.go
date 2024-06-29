@@ -219,7 +219,7 @@ func downloadFile(masterIP, masterPort, fileName string, destPath string) error 
 }
 
 func deleteFile(masterIP, masterPort, fileName string) error {
-	resp, err := http.Get(fmt.Sprintf("http://%s:%s/download?fileName=%s", masterIP, masterPort, fileName))
+	resp, err := http.Get(fmt.Sprintf("http://%s:%s/delete?fileName=%s", masterIP, masterPort, fileName))
 	if err != nil {
 		return err
 	}
@@ -286,7 +286,7 @@ func main() {
 			return
 		}
 		filePath := args[0]
-		err := uploadFile(config.Master.IP, config.Master.Port, filePath, 1024)
+		err := uploadFile(config.Master.IP, config.Master.Port, filePath, 1024*200)
 		if err != nil {
 			fmt.Println("Error uploading file:", err)
 		} else {
