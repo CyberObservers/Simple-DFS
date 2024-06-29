@@ -1,8 +1,8 @@
 package main
 
 import (
+	"GoDFS/utils"
 	"encoding/json"
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
@@ -10,40 +10,6 @@ import (
 	"os"
 	"path/filepath"
 )
-
-type Configuration struct {
-	Master struct {
-		IP   string `xml:"ip"`
-		Port string `xml:"port"`
-	} `xml:"master"`
-	StorageServers struct {
-		Servers []struct {
-			IP        string `xml:"ip"`
-			Port      string `xml:"port"`
-			Directory string `xml:"directory"`
-		} `xml:"server"`
-	} `xml:"storageServers"`
-}
-
-func loadConfig(configPath string) (Configuration, error) {
-	var config Configuration
-	xmlFile, err := os.Open(configPath)
-	if err != nil {
-		return config, err
-	}
-	defer func(xmlFile *os.File) {
-		err := xmlFile.Close()
-		if err != nil {
-			fmt.Println("Error closing file")
-		}
-	}(xmlFile)
-	byteValue, _ := io.ReadAll(xmlFile)
-	err = xml.Unmarshal(byteValue, &config)
-	if err != nil {
-		return Configuration{}, err
-	}
-	return config, nil
-}
 
 type StorageServer struct {
 	IP        string
@@ -153,7 +119,7 @@ func main() {
 	serverIndex := flag.Int("server", 1, "Storage server index (starting from 1)")
 	flag.Parse()
 
-	config, err := loadConfig(*configPath)
+	config, err := utils.LoadConfig(*configPath)
 	if err != nil {
 		fmt.Println("Error loading configuration:", err)
 		return
