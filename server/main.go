@@ -111,6 +111,7 @@ func (s *StorageServer) Run() {
 	fmt.Println("Storage Server running on", addr)
 	err := http.ListenAndServe(addr, nil)
 	if err != nil {
+		fmt.Println("Error when running chunk server", err)
 		return
 	}
 }

@@ -10,6 +10,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -25,6 +28,25 @@ type Configuration struct {
 			Directory string `xml:"directory"`
 		} `xml:"server"`
 	} `xml:"storageServers"`
+}
+
+func extractChunkIndex(fileName string) (int, error) {
+	// Define a regular expression to find the last number in the string
+	re := regexp.MustCompile(`_(\d+)$`)
+
+	// Find the matches
+	matches := re.FindStringSubmatch(fileName)
+	if len(matches) < 2 {
+		return 0, fmt.Errorf("no chunk index found in file name: %s", fileName)
+	}
+
+	// Convert the matched string to an integer
+	index, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0, fmt.Errorf("invalid chunk index in file name: %s", fileName)
+	}
+
+	return index, nil
 }
 
 func loadConfig(configPath string) (Configuration, error) {
@@ -56,6 +78,7 @@ func splitFile(filePath string, chunkSize int) ([][]byte, error) {
 		err := file.Close()
 		if err != nil {
 			fmt.Println("Error closing file")
+			return
 		}
 	}(file)
 
@@ -63,10 +86,20 @@ func splitFile(filePath string, chunkSize int) ([][]byte, error) {
 	buf := make([]byte, chunkSize)
 	for {
 		n, err := file.Read(buf)
-		if err != nil {
+
+		// fatal error
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+		if n > 0 {
+			// Create a new slice to avoid overwriting
+			chunk := make([]byte, n)
+			copy(chunk, buf[:n])
+			chunks = append(chunks, chunk)
+		}
+		if err == io.EOF {
 			break
 		}
-		chunks = append(chunks, buf[:n])
 	}
 	return chunks, nil
 }
@@ -136,8 +169,13 @@ func downloadFile(masterIP, masterPort, fileName string, destPath string) error 
 		return err
 	}
 
-	var fileData []byte
-	for _, url := range downloadURLs {
+	type fileChunk struct {
+		index int
+		data  []byte
+	}
+	var fileChunks []fileChunk
+
+	for i, url := range downloadURLs {
 		resp, err := http.Get(url)
 		if err != nil {
 			return err
@@ -153,7 +191,23 @@ func downloadFile(masterIP, masterPort, fileName string, destPath string) error 
 		if err != nil {
 			return err
 		}
-		fileData = append(fileData, chunk...)
+
+		thisIndex, err := extractChunkIndex(i)
+		if err != nil {
+			panic("Error converting index")
+		}
+
+		fileChunks = append(fileChunks, fileChunk{index: thisIndex, data: chunk})
+	}
+
+	// Sort the chunks by their index to ensure correct order
+	sort.Slice(fileChunks, func(i, j int) bool {
+		return fileChunks[i].index < fileChunks[j].index
+	})
+
+	var fileData []byte
+	for _, chunk := range fileChunks {
+		fileData = append(fileData, chunk.data...)
 	}
 
 	err = os.WriteFile(destPath, fileData, 0644)
@@ -208,12 +262,13 @@ func main() {
 	}
 
 	commands["download"] = func(args []string) {
-		if len(args) < 1 {
-			fmt.Println("Usage: download <path>")
+		if len(args) < 2 {
+			fmt.Println("Usage: download <path> <dst path>")
 			return
 		}
 		filePath := args[0]
-		err := downloadFile(config.Master.IP, config.Master.Port, filepath.Base(filePath), filePath)
+		localPath := args[1]
+		err := downloadFile(config.Master.IP, config.Master.Port, filepath.Base(filePath), localPath)
 		if err != nil {
 			fmt.Println("Error downloading file:", err)
 		} else {

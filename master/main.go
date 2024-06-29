@@ -10,6 +10,12 @@ import (
 	"sync"
 )
 
+/*
+TODO: 1. solve file upload with the same name, involving data update and conflict solving.
+TODO: 2. metadata persistence.
+TODO: 3. Support for Linux; echo off some windows.
+*/
+
 type Configuration struct {
 	Master struct {
 		IP   string `xml:"ip"`
@@ -105,7 +111,11 @@ func (m *Master) listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(fileList)
+	err := json.NewEncoder(w).Encode(fileList)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 }
 
 func (m *Master) Run() {
