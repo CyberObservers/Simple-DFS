@@ -8,17 +8,17 @@
         <server>
             <ip>127.0.0.1</ip>
             <port>8001</port>
-            <directory>E:\大三下\GoDFS\tmp\chunk102</directory>
+            <directory>D:\GoProj\Simple-DFS\tmp\chunk102</directory>
         </server>
         <server>
             <ip>127.0.0.1</ip>
             <port>8002</port>
-            <directory>E:\大三下\GoDFS\tmp\chunk103</directory>
+            <directory>D:\GoProj\Simple-DFS\tmp\chunk103</directory>
         </server>
         <server>
             <ip>127.0.0.1</ip>
             <port>8003</port>
-            <directory>E:\大三下\GoDFS\tmp\chunk104</directory>
+            <directory>D:\GoProj\Simple-DFS\tmp\chunk104</directory>
         </server>
     </storageServers>
 </configuration>
