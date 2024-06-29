@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -104,9 +105,40 @@ func (s *StorageServer) downloadHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+func (s *StorageServer) deleteHandler(w http.ResponseWriter, r *http.Request) {
+	chunk := r.URL.Query().Get("chunk")
+	if chunk == "" {
+		http.Error(w, "chunk is required", http.StatusBadRequest)
+		return
+	}
+
+	filePath := filepath.Join(s.Directory, chunk)
+	err := os.Remove(filePath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]string{
+		"message": "Chunk deleted successfully",
+	}
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_, err = w.Write(jsonResponse)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (s *StorageServer) Run() {
 	http.HandleFunc("/uploadBlock", s.uploadHandler)
 	http.HandleFunc("/downloadBlock", s.downloadHandler)
+	http.HandleFunc("/deleteBlock", s.deleteHandler)
 	addr := fmt.Sprintf("%s:%s", s.IP, s.Port)
 	fmt.Println("Storage Server running on", addr)
 	err := http.ListenAndServe(addr, nil)

@@ -101,6 +101,37 @@ func (m *Master) downloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (m *Master) deleteHandler(w http.ResponseWriter, r *http.Request) {
+	fileName := r.URL.Query().Get("fileName")
+	if fileName == "" {
+		http.Error(w, "fileName is required", http.StatusBadRequest)
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	chunks, exists := m.fileIndex[fileName]
+	if !exists {
+		http.Error(w, "file not found", http.StatusNotFound)
+		return
+	}
+
+	delete(m.fileIndex, fileName)
+
+	response := make(map[string]string)
+	for i, chunk := range chunks {
+		server := m.config.StorageServers.Servers[i%len(m.config.StorageServers.Servers)]
+		response[chunk] = fmt.Sprintf("http://%s:%s/deleteBlock?chunk=%s", server.IP, server.Port, chunk)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(response)
+	if err != nil {
+		return
+	}
+}
+
 func (m *Master) listHandler(w http.ResponseWriter, r *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -122,6 +153,7 @@ func (m *Master) Run() {
 	http.HandleFunc("/upload", m.uploadHandler)
 	http.HandleFunc("/download", m.downloadHandler)
 	http.HandleFunc("/list", m.listHandler)
+	http.HandleFunc("/delete", m.deleteHandler)
 	addr := fmt.Sprintf("%s:%s", m.config.Master.IP, m.config.Master.Port)
 	fmt.Println("Master running on", addr)
 	err := http.ListenAndServe(addr, nil)

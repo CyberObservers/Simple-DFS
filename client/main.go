@@ -218,6 +218,39 @@ func downloadFile(masterIP, masterPort, fileName string, destPath string) error 
 	return nil
 }
 
+func deleteFile(masterIP, masterPort, fileName string) error {
+	resp, err := http.Get(fmt.Sprintf("http://%s:%s/download?fileName=%s", masterIP, masterPort, fileName))
+	if err != nil {
+		return err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println("Error closing body")
+		}
+	}(resp.Body)
+
+	var deleteURLs map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&deleteURLs); err != nil {
+		return err
+	}
+
+	for _, url := range deleteURLs {
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				fmt.Println("Error closing body")
+			}
+		}(resp.Body)
+	}
+
+	return nil
+}
+
 func listFiles(masterIP, masterPort string) ([]string, error) {
 	resp, err := http.Get(fmt.Sprintf("http://%s:%s/list", masterIP, masterPort))
 	if err != nil {
@@ -273,6 +306,20 @@ func main() {
 			fmt.Println("Error downloading file:", err)
 		} else {
 			fmt.Println("File downloaded successfully.")
+		}
+	}
+
+	commands["delete"] = func(args []string) {
+		if len(args) < 1 {
+			fmt.Println("Usage: delete <path>")
+			return
+		}
+		filePath := args[0]
+		err := deleteFile(config.Master.IP, config.Master.Port, filePath)
+		if err != nil {
+			fmt.Println("Error deleting file:", err)
+		} else {
+			fmt.Println("File deleted successfully.")
 		}
 	}
 
