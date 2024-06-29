@@ -10,6 +10,12 @@ import (
 	"sync"
 )
 
+/*
+TODO: 1. solve file upload with the same name, involving data update and conflict solving.
+TODO: 2. metadata persistence.
+TODO: 3. Support for Linux; echo off some windows.
+*/
+
 type Configuration struct {
 	Master struct {
 		IP   string `xml:"ip"`
