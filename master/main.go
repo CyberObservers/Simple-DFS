@@ -111,7 +111,11 @@ func (m *Master) listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(fileList)
+	err := json.NewEncoder(w).Encode(fileList)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 }
 
 func (m *Master) Run() {
